@@ -73,9 +73,7 @@ char *parse_expression(const char* s) {
                 break;
             }
             case 1: { // Parse numbers
-                if (c == ' ') {
-                    c = *++s;
-                } else if (c >= '0' && c <= '9') {
+                if (c >= '0' && c <= '9') {
                     i++;
 
                     res = realloc(res, (i + 1) * sizeof(char));

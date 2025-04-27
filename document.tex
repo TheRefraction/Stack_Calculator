@@ -1,0 +1,264 @@
+\documentclass[a4paper,11pt,titlepage]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{stmaryrd}
+\usepackage{float}
+\usepackage[hmargin={2.5cm,2.5cm},top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage{lmodern}
+\usepackage[ruled,lined]{algorithm2e}
+\usepackage{listings}
+\usepackage{tikz, pgf}
+
+\usepackage[colorlinks=true,breaklinks=true,linkcolor=blue,filecolor=magenta,urlcolor=cyan,pdftitle={Command-line Calculator},pdfsubject={Formal Languages}]{hyperref}
+
+\usetikzlibrary{arrows,shapes,positioning}
+
+\title{
+    \Huge{Command-line Calculator} \\
+    \Large{Project n°2} \\
+    \vspace{1cm} 
+    \large{Formal Languages} \\
+    \large{Summer semester 2025}
+}
+
+\author{HAUTEFAYE Corentin}
+\date{}
+
+\begin{document}
+
+\SetKwComment{Comment}{/* }{ */}
+\SetKwInput{Entree}{Input}
+\SetKwInput{Sortie}{Output}
+\SetKw{KwA}{from}
+\SetKw{KwD}{to}
+\SetKw{KwO}{OR}
+\SetKw{KwE}{AND}
+\SetKw{KwN}{NOT}
+\SetKwBlock{Deb}{Begin}{End}
+\SetKwIF{Si}{SinonSi}{Sinon}{If}{Then}{Else\:if}{Else}{End\:If}
+\SetKwFor{Pour}{For}{Do}{End\:For}
+\SetKwFor{Tq}{While}{Do}{End\:While}
+\SetKwRepeat{Rep}{Repeat}{Until}
+\SetKwProg{Fn}{Function}{\\Begin}{End}
+\SetKwProg{Pc}{Procedure}{\\Begin}{End}
+
+\maketitle
+\newpage
+
+\tableofcontents
+\newpage
+% ---------------------------------------------------------
+\section{Introduction}
+Within the scope of this class on \textit{Formal Languages}, the second assignment I had to work on was to implement a command-line calculator in Java, C or Python. The goal of this project was to understand how context-free grammars can be parsed then evaluated using a stack.
+
+This program should able to handle expressions that include basic arithmetic operators, such as $+, -, \times,\div,\%$. It should also take into account nested expressions as well as associativity and usual precedence. Moreover, it takes integers and variables as parameters in expressions. If a variable is encountered while parsing, then its value should be prompted to the user.
+
+Furthermore this calculator should use a stack-base approach for the evaluation of expressions. Therefore it must display any transformation onto that stack, then the result.
+
+% ---------------------------------------------------------
+\section{Algorithms \& Implementation}
+I have chosen to implement this project in C99 as I am much more comfortable in using that language. Moreover, I only needed structures and not classes to program, thus the choice was quite quick.
+
+Finally, this project has been compiled on Windows with CLion. It should be able to compile also on any Linux distribution with GCC installed.
+
+\subsection{Stack}
+In order to evaluate arithmetic expressions using stacks, we first need to define such structures, whence : $\verb|StackNode| : \left\{\begin{array}{ll}
+    \verb|value| &:\verb|integer|\\
+    \verb|next| &:\verb|StackNode|
+\end{array}\right.$ and $\verb|Stack| : \left\{\begin{array}{ll}
+    \verb|size| &:\verb|unsigned integer|\\
+    \verb|top| &:\verb|StackNode|
+\end{array}\right.$. 
+
+Usually, stacks are defined as a continuous and bounded block in memory, with a base address and a pointer to the top of the stack. Here, I have chosen to represent stacks as non-continuous and unbounded blocks in memory. I do not need indeed to have all data stored continuously as pushing and popping values using dynamic allocation could be inefficient. Moreover, since I do not know how much data I will need to store, I cannot bound the size of the stack.
+\pagebreak
+\subsection{Expressions Checking}
+
+Let $\mathcal{A}=(0-9)^*\cup(A-Z)$ and $\mathcal{O}=\{(,),+,-,*,\%\}$. Thus we can formally define a grammar $G=(\mathcal{A}\cup\mathcal{O},\{X,T,F,N,D,I\},\to,X)$ such that we have the following axioms: \begin{align*}\left\{\begin{array}{ll}
+    X &\to X+T\;|\;X-T\;|\;T\\
+    T &\to T*F\;|\;T\;/\;F\;|\;T\;\%\;F\;|\;F\\
+    F &\to (X)\;|\;N\;|\;I\\
+    N &\to DN\;|\;D\\
+    D &\to 0-9\\
+    I &\to A-Z
+\end{array}\right.\end{align*}
+
+Thus, our program should be able to handle arithmetic expressions described by $G$. Using a top-down recursion allows us to check whether a given expression belongs to $L(G)$. As you can see, variables are one letter only. Therefore my current implement only allows for the use of each letter of the standard Latin alphabet, whence 26. Besides the deepest part of the recursion (\textit{for variables}) also takes care of getting the value of each variable that has not been seen before.
+
+Furthermore, I have decided that any whitespace encountered while parsing an expression should be discarded. Thus the amount of spaces does not matter. Also the current implementation is case insensitive for variables (\textit{lowercase letters are replaced by their uppercase counterpart}).
+
+\subsection{Parsing}
+Let's consider $E=2*(x+1)-1$. Thus we can draw the following binary tree $T_E$:
+\begin{center}
+    \begin{tikzpicture}
+        \node[draw] (A1) at (0,0) {\verb|SUB|} ;
+        
+        \node[draw] (B1) at (-2,-2) {\verb|MUL|} ;
+        \node[draw] (B2) at (2,-2) {1} ;
+        
+        \node[draw] (C1) at (-4,-4) {2} ;
+        \node[draw] (C2) at (0,-4) {\verb|ADD|} ;
+        
+        \node[draw] (D1) at (-2,-6) {$x$} ;
+        \node[draw] (D2) at (2,-6) {1} ;
+
+        \draw[->,>=latex] (0, 1) -- (A1) ;
+        \draw[->,>=latex] (A1) -- (B1) ;
+        \draw[->,>=latex] (A1) -- (B2) ;
+        \draw[->,>=latex] (B1) -- (C1) ;
+        \draw[->,>=latex] (B1) -- (C2) ;
+        \draw[->,>=latex] (C2) -- (D1) ;
+        \draw[->,>=latex] (C2) -- (D2) ;
+    \end{tikzpicture}
+\end{center}
+
+Let $T$ be a binary tree. For a given node $N$ in $T$, we will respectively denote its left and right children by $L$ and $R$. Thus, it is possible to read this tree in different ways:
+\begin{enumerate}
+    \item[\underline{Infix}] We go through $T$ in the following order $LNR$. Therefore, for $T_E$ we would get $((2)*((x)+(1)))-(1)$ whence the starting expression $E$. Please mind the fact that in this kind of traversal, it is necessary to add parenthesis not to make any kind of mistake, only then some may be removed.
+    \item[\underline{Prefix}] We go through $T$ in the following order $NLR$. Therefore, for $T_E$ we would get $-\;*\;2\;+\;x\;1\;1$. Let's notice that we have operators before their operands, and we do not need parenthesis. This traversal is great but not enough to be able to use stacks as it is in the wrong order.
+    \item[\underline{Postfix}] We go through $T$ in the following order $LRN$. Therefore, for $T_E$ we would get $2\;x\;1\;+\;*\;1\;-$. Here, we have operands before operators, and still no parenthesis. 
+\end{enumerate}
+
+Therefore we will use the postfix notation of any given expression to proceed with a stack-based evaluation. Thus, we need to parse it in such a way that we get that kind of notation at the end.
+
+Thereby we need to use a pushdown automaton $N_P$ to perform such transformations. Thus we will denote states by $(S_i)_{i\in\llbracket0;7\rrbracket}$. Moreover, our automaton will use a stack $P$ to hold operators and will write the postfix expression into a string which we will call $S$. Both $S_6$ and $S_7$ are final states. Once the whole string has been processed, if $N_P$ is not in state $S_6$, then it makes a transition to state $S_7$. Thus, we have the following transition table:
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|c||c|c|}
+        \hline
+        State &  Character & Next state \\ \hline\hline
+        $S_0$ &  '\;\;' & $S_0$ \\ \hline
+        $S_0$ & $0-9$ & $S_1$ \\ \hline
+        $S_0$ & $+,-,*,/,\%$ & $S_2$ \\ \hline
+        $S_0$ & '(' & $S_3$ \\ \hline
+        $S_0$ & ')' & $S_4$ \\ \hline
+        $S_0$ & $A-Z$ & $S_5$ \\ \hline
+        $S_0$ & $\epsilon$ & $S_6$\\ \hline
+        $S_1$ & $0-9$ & $S_1$ \\ \hline
+        $S_1$ & $\epsilon$ & $S_0$ \\ \hline
+        $S_2$ & $\epsilon$ & $S_0$ \\\hline
+        $S_3$ & $\epsilon$ & $S_0$ \\ \hline
+        $S_4$ & $\epsilon$ & $S_0$ \\ \hline
+        $S_4$ & $\epsilon$ & $S_6$ \\ \hline
+        $S_5$ & $\epsilon$ & $S_0$ \\ \hline
+    \end{tabular}
+    \caption{Transition table (Transitions to $S_7$ are not in this table)}
+\end{table}
+
+\paragraph{State $S_0$} This is the starting state of this automaton, and also the general state. This part skips all whitespace and decides which action to apply regarding the current character that is being read. Any invalid or unknown character yields the state $S_6$.
+
+\paragraph{State $S_1$} This state parses integers. Once the whole integer has been processed, it is written into the buffer $S$ and the automaton returns in state $S_0$.
+
+\paragraph{State $S_2$} This state parses operators and performs two operations. First, if $P$ is not empty, it will compare the precedence of the operator $O$ at the top of $P$ with the current one being parsed. If $O$ has a greater precedence, then it is removed from $P$ and written to the buffer $S$. This operation is repeated until either $P$ is empty or the operator at its top has a lower precedence. Finally, the given operator is pushed onto $P$, and the automaton returns to general state $S_0$.
+
+\paragraph{State $S_3$} This state parses left parenthesis and pushes this token onto $P$.
+
+\paragraph{State $S_4$} This state parses right parenthesis. It will remove each operator from $P$ and write them to the buffer $S$ until $P$ is either empty or its top is a left parenthesis. If no left parenthesis is encountered in $P$, then $N_P$ transitions to $S_6$ otherwise it returns to state $S_0$.
+
+\paragraph{State $S_5$} This state parses user-defined variables and write it directly to the buffer $S$. $N_P$ goes back to state $S_0$ afterwards.
+
+\paragraph{State $S_6$} This is the error state. Here memory is freed and $N_P$ does not perform any more transitions.
+
+\paragraph{State $S_7$} $N_P$ is put in this state once the whole string has been processed and no error has occurred. If $P$ is not empty, it will remove each element from it and write them to the buffer $S$. Memory is freed and the final string $S$ is returned. 
+
+\underline{Nota bene}: Each part of the final string is separated by a whitespace so that everything is clear. Indeed, if we have $42$, we do not know if we should interpret it as $42$ or $4$ and $2$, whence $4\;\;2$.
+
+\subsection{Evaluation}
+
+Let $E$ be an expression written in the postfix notation. The evaluation of such a form is trivial, whence the following algorithm:
+
+\begin{algorithm}[H]
+    \caption{Evaluate a string in postfix notation}
+    \Entree{$S$: string, $V$: array<integer>[26]}
+    \Sortie{Integer}
+    \Fn{evaluate(S: string, V: array<integer>[26]) : integer}{
+        \Si{$S=\emptyset$} {
+            \tcp{Error}
+            $\text{evaluate}\gets0$\;
+        }
+        $P:\text{Stack}\gets\emptyset$\;
+        $i:\text{unsigned integer}\gets0$\;
+        \Tq{$S[i]\ne \;'\backslash0'$}{
+            \eSi{$S[i]=\;'\;\;'$} {
+                $i\gets i+1$\;
+            } {
+                \eSi{$S[i]\in(A-Z)$} {
+                    \tcp{S[i] is an ASCII character and 'A' = 65}
+                    $P\gets\text{push}(P, V[S[i] - 65])$\;
+                    $i\gets i +1$\;
+                } {
+                    \eSi{$S[i]\in(0-9)$} {
+                        $val:\text{integer}\gets0$
+                        \Tq{$S[i]\ne\;'\backslash0'$ \KwE $S[i]\ne\;'\;\;'$} {
+                            $val\gets val*10$\;
+                            $val\gets val + (S[i]-\;'0')$\;
+                            $i\gets i + 1$\;
+                        }
+
+                        $P\gets\text{push}(P, val)$\;
+                    } {
+                        \eSi{$\text{is\_operator}(S[i])$} {
+                            $b:\text{integer}\gets\text{pop}(P)$\;
+                            $a:\text{integer}\gets\text{pop}(P)$\;
+                            \tcp{get\_result returns the result (integer) of a by b with the operator S[i]}
+                            $tmp:\text{integer}\gets \text{get\_result}(a,b,S[i])$\;
+                            
+                            $P\gets\text{push}(P, tmp)$\;
+                            $i\gets i+1$\;
+                        } {
+                            \tcp{Error here}
+                            $\text{free}(P)$\;
+                            $\text{evaluate}\gets 0$\;
+                        }
+                    }
+                }
+            }
+        }
+        $res:\text{integer}\gets\text{pop}(P)$\;
+        $\text{free}(P)$\;
+        $\text{evaluate}\gets res$\;
+    }
+\end{algorithm}
+
+% ---------------------------------------------------------
+\section{Example}
+
+\begin{verbatim}
+Please enter an arithmetic expression:(x+3)*6-2/4
+Enter value for 'X':5
+======================
+Expression in stack-compatible form: X 3 + 6 * 2 4 / -
+----------------------
+->|5|
+->|3|5|
+(+) ->|8|
+->|6|8|
+(*) ->|48|
+->|2|48|
+->|4|2|48|
+(/) ->|0|48|
+(-) ->|48|
+----------------------
+Thus, (X+3)*6-2/4=48
+======================
+Would you like to evaluate another expression (Y/N):n
+\end{verbatim}
+% ---------------------------------------------------------
+\section{Conclusion \& Feedback}
+\subsection{Difficulties}
+I did not really have any kind of difficulty for this project. 
+
+\subsection{Suggestions}
+There are some parts of this program which could be improved. For instance, we could add other operators and/or functions such as \textasciicircum (power), $\exp, \sin, \arctan, \ldots$ We could also add the possibility to handle floating numbers and precision. Finally, being able to use whole identifiers for variables could be a good idea.
+% ---------------------------------------------------------
+
+\end{document}

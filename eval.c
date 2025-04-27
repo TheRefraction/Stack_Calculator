@@ -14,7 +14,6 @@ long long evaluate(const char* s, long long vars[26]) {
     Stack *stack = NULL;
 
     char c = *s;
-    long long val = 0;
 
     while (c != '\0') {
         if (c == ' ') {
@@ -26,7 +25,7 @@ long long evaluate(const char* s, long long vars[26]) {
 
             c = *++s;
         } else if (c >= '0' && c <= '9') {
-            val = 0;
+            long long val = 0;
             while (c != ' ' && c != '\0') {
                 val *= 10;
                 val += c - '0';
